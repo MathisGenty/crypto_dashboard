@@ -1,3 +1,4 @@
 scrape_debug.log
 cron.log
 data/prices.csv
+data/eth_prices.csv
