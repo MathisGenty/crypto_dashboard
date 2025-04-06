@@ -15,9 +15,10 @@ app.layout = html.Div(style={
     "padding": "40px"
 }, children=[
     html.H1("Suivi du prix des cryptos", style={"textAlign": "center"}),
-html.Div(
-    "Genty Mathis et Konkobo Thomas IF3",
-    style={"textAlign": "center", "fontSize": "20px", "marginTop": "10px", "marginBottom": "30px"}  # Ajustez marginBottom pour plus d'espace
+    
+    html.Div(
+        "Genty Mathis et Konkobo Thomas IF3",
+        style={"textAlign": "center", "fontSize": "20px", "marginTop": "10px", "marginBottom": "30px"} 
 ),
     dcc.Dropdown(
         id="crypto-dropdown",
