@@ -2,69 +2,79 @@ import pandas as pd
 from dash import Dash, dcc, html
 from dash.dependencies import Input, Output
 import plotly.graph_objs as go
-import datetime
+from generate_daily_report import generate_daily_report
+import json
 
 app = Dash(__name__)
-app.title = "Bitcoin Tracker"
+app.title = "Crypto Tracker"
 
-def load_data():
-    df = pd.read_csv("data/prices.csv", names=["timestamp", "price"])
-    df["timestamp"] = pd.to_datetime(df["timestamp"])
-    return df
-
-# App layout avec du style
+# App layout
 app.layout = html.Div(style={
     "backgroundColor": "#1e1e1e",
     "color": "#f1f1f1",
     "fontFamily": "Arial, sans-serif",
-    "padding": "40px",
-    "minHeight": "100vh"
+    "padding": "40px"
 }, children=[
-    html.H1("💸 Bitcoin Price Tracker (CryptoCompare)", style={
-        "textAlign": "center",
-        "color": "#00FFAB",
-        "marginBottom": "40px"
-    }),
-    
-    html.Div(id="latest-price", style={
-        "fontSize": "30px",
-        "textAlign": "center",
-        "marginBottom": "30px"
-    }),
+    html.H1("Suivi du prix des cryptos", style={"textAlign": "center"}),
 
-    dcc.Graph(id="price-graph", config={"displayModeBar": False}),
-    
-    dcc.Interval(id="interval", interval=30*1000, n_intervals=0)
+    dcc.Dropdown(
+        id="crypto-dropdown",
+        options=[
+            {"label": "Bitcoin", "value": "btc"},
+            {"label": "Ethereum", "value": "eth"}
+        ],
+        value="btc",
+        style={"width": "50%", "margin": "auto", "color": "#000"}
+    ),
+
+    dcc.Graph(id="price-graph"),
+
+    # Afficher le rapport quotidien
+    html.Div(id="daily-report", style={"textAlign": "center", "marginTop": "20px"})
 ])
 
+# Callback pour mettre à jour le graphe et le rapport quotidien selon la crypto choisie
 @app.callback(
-    [Output("latest-price", "children"),
-     Output("price-graph", "figure")],
-    [Input("interval", "n_intervals")]
+    [Output("price-graph", "figure"),
+     Output("daily-report", "children")],
+    [Input("crypto-dropdown", "value")]
 )
-def update_graph(n):
-    df = load_data()
-    latest_price = df["price"].iloc[-1]
+def update_graph_and_report(crypto):
+    # Charger les prix pour le graphique
+    if crypto == "btc":
+        filepath = "data/prices.csv"
+    else:
+        filepath = "data/eth_prices.csv"
 
-    price_text = f"Dernier prix : {latest_price:.2f} $"
-    fig = go.Figure(
-        data=go.Scatter(
-            x=df["timestamp"],
-            y=df["price"],
-            mode="lines",
-            line=dict(color="#00FFAB")
-        )
-    )
+    df = pd.read_csv(filepath, names=["timestamp", "price"])
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df["timestamp"], y=df["price"], mode="lines+markers", name=crypto.upper()))
     fig.update_layout(
-        paper_bgcolor="#1e1e1e",
-        plot_bgcolor="#1e1e1e",
-        font=dict(color="#f1f1f1"),
-        margin=dict(l=40, r=40, t=20, b=40),
-        xaxis_title="Heure",
-        yaxis_title="Prix ($)"
+        title=f"Prix de {crypto.upper()}",
+        xaxis_title="Date",
+        yaxis_title="Prix en USD",
+        template="plotly_dark"
     )
-    return price_text, fig
+
+    # Générer le rapport quotidien
+    report = generate_daily_report(crypto)
+    if "error" in report:
+        daily_report = f"Aucun rapport disponible pour {crypto.upper()} aujourd'hui."
+    else:
+        daily_report = [
+            html.H3(f"Rapport quotidien pour {crypto.upper()}:"),
+            html.P(f"Date: {report['date']}"),
+            html.P(f"Prix d'ouverture: ${report['open']}"),
+            html.P(f"Prix de clôture: ${report['close']}"),
+            html.P(f"Prix maximum: ${report['max']}"),
+            html.P(f"Prix minimum: ${report['min']}"),
+            html.P(f"Volatilité: {report['volatility']} USD"),
+            html.P(f"Évolution: {report['evolution_percent']}%")
+        ]
+
+    return fig, daily_report
 
 if __name__ == "__main__":
-    app.run(debug=True)
-
+    app.run(debug=True, host='0.0.0.0', port=8050)
